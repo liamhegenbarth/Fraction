@@ -1,0 +1,121 @@
+//=====  set has-fraction() on parent element  =====//
+
+// pass in the same gutter values as children
+// pass in a bottom value for margin-bottom
+
+@mixin has-fraction( $gutter: 0, $bottom: 0 ) 
+{
+
+	// if a gutter and a bottom margin were passed in, set both as margin
+	@if $gutter != 0 and $bottom != 0
+	{
+		margin: 0 (-$gutter / 2) $bottom;
+	}
+	// if only a gutter was passed in, set this as the margin
+	@elseif $gutter != 0
+	{
+		margin-left: -$gutter / 2;
+		margin-right: -$gutter / 2;
+	}
+	
+	// clear-fix to prevent elements floating up around a fraction
+	&:after {
+		content: '';
+		display: block;
+		clear: both;
+	}
+
+} // end has-fraction();
+
+
+
+//=====  set fraction() on child elements  =====//
+
+// pass in number of columns the element should span
+// can be a fraction, decimal or whole number
+// pass in the same gutter values as parent
+// pass in a bottom value for margin-bottom
+
+@mixin fraction( $columns, $gutter: 0, $bottom: 0 )
+{
+
+	// float grid items
+	float: left;
+
+
+	//=====  store width of element in variable  =====//
+	
+	// if columns are passed in as a fraction or decimal, we set unequal width elements
+	@if $columns < 1
+	{
+		$width: 100% * $columns;
+	}
+	// else, its a whole number, so we set equal columns
+	@else
+	{
+		$width: 100% / $columns;
+	}
+
+	
+	//=====  provide console warnings for invalid gutters  =====//
+	
+	// store unitless value of gutter in variable
+	$unit: $gutter / ($gutter * 0 + 1);
+
+	// if a $gutter is passed in and it's negative or zero
+	// we should @warn the dev that it isn't required
+	@if $gutter != 0 and $unit <= 0 
+	{
+		// if the $gutter is 0
+		@if $unit == 0
+		{
+			@warn you dont need to pass a margin to fraction for 0 -- you used $gutter;
+		}
+		// else the $gutter is negative
+		@else 
+		{
+			@warn please provide a positive margin to fraction -- you used $gutter;
+		}
+	}
+	
+
+	//=====  set width of grid elements  =====//
+	
+	// use calc if gutter has a unit, but unit isn't a % (i.e, mixed units)
+	@if unitless($gutter) == false and unit($gutter) != % and $unit > 0
+	{
+		width: calc(#{$width} - #{$gutter});
+	}
+	// if gutter has a value, it must be a %, so we can use simple maths
+	@elseif $gutter != 0 and $unit > 0
+	{
+		width: $width - $gutter;
+	}
+	// else, no gutter was passed in, so we can just set a width
+	@else
+	{
+		width: $width;
+	}
+
+
+	//=====  set margins of grid elements  =====//
+	
+	// if the $gutter is a valid unit
+	@if $unit > 0
+	{
+
+		// if a gutter and a bottom margin were passed in, set both as margin
+		@if $gutter != 0 and $bottom != 0
+		{
+			margin: 0 ($gutter / 2) $bottom;
+		}
+		// if only a gutter was passed in, set this as the margin
+		@elseif $gutter != 0
+		{
+			margin: 0 ($gutter / 2);
+		}
+		// else, no gutter or bottom margin are required, so don't set anything
+	
+	}
+
+} // end fraction();
