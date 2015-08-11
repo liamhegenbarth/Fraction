@@ -1,3 +1,13 @@
+//=====  set placeholder for DRY fraction() alignment  =====//
+
+// just setup a basic float
+// this rule will be shared across all fraction()s when compiled
+
+%align-fraction {
+	float: left;
+}
+
+
 //=====  set has-fraction() on parent element  =====//
 
 // pass in the same gutter values as children
@@ -40,7 +50,7 @@
 {
 
 	// float grid items
-	float: left;
+	@extend %align-fraction;
 
 
 	//=====  store width of element in variable  =====//

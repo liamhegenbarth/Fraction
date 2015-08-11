@@ -1,7 +1,7 @@
 {
   "name": "Fraction",
   "description": "Smart little sass mixin for columns and grids",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "homepage": "http://github.com/liamhegenbarth/fraction",
   "repository": "git://github.com/liamhegenbarth/fraction.git",
   "author": "Liam Hegenbarth <mail@liamhegenbarth.co.uk> (http://www.liamhegenbarth.co.uk/)",
