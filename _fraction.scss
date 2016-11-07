@@ -1,131 +1,991 @@
-//=====  set placeholder for DRY fraction() alignment  =====//
 
-// just setup a basic float
-// this rule will be shared across all fraction()s when compiled
+// Fraction
+// --------
+// 
+// @version 3.2.0
+// @author Liam Hegenbarth
+// 
+// @description 
+// simple yet powerful sass mixin for columns and grids
+// allows quick use (inline arguments)
+// or advanced use (map arguments)
+// with optimised output of css rules
+// run (debug : true) for all available options
 
-%align-fraction {
-	float: left;
+
+// Contents
+// --------
+//
+// * helpers
+//   1. @fraction-debug() mixin
+// 	 2. @fraction-integer() function
+// 	 3. @fraction-total() function
+// 
+// * @fraction() mixin
+// 	 4. data transforms
+// 	 5. store variables
+// 	 6. error checking
+// 	 7. default css rules
+//	 8. multiple column css rules
+// 	 9. single column css rules
+// 	 10. reset grids and rows
+
+
+// Helpers
+// -------
+
+
+// 1. @fraction-debug()
+// --------------------
+//
+// debugger mixin to output @fraction() parameters to console
+
+@mixin fraction-debug($params)
+{
+	@debug '=======  fraction options  =======';
+	
+	// loop through map and print, ignoring debug key
+	@each $key, $value in $params
+	{
+		@if $key != debug
+		{
+			@debug '#{$key}	( #{$value} )';
+		}
+	}
 }
 
 
-//=====  set has-fraction() on parent element  =====//
+// 2. @fraction-integer()
+// ----------------------
+// 
+// convert $columns into integers
+// @returns integer
 
-// pass in the same gutter values as children
-// pass in a bottom value for margin-bottom
-
-@mixin has-fraction( $gutter: 0, $bottom: 0 ) 
+@function fraction-integer($integer)
 {
-
-	// if a gutter and a bottom margin were passed in, set both as margin
-	@if $gutter != 0 and $bottom != 0
+	@if $integer < 1
 	{
-		margin: 0 (-$gutter / 2) $bottom;
+		$integer : 1 / $integer;
 	}
-	// if only a gutter was passed in, set this as the margin
-	@elseif $gutter != 0
+	@elseif $integer > 1
 	{
-		margin-left: -$gutter / 2;
-		margin-right: -$gutter / 2;
-	}
-	
-	// clear-fix to prevent elements floating up around a fraction
-	&:after {
-		content: '';
-		display: block;
-		clear: both;
+		$integer : 1 * $integer;
 	}
 
-} // end has-fraction();
+	@return $integer;
+}
 
 
+// 3. @fraction-total()
+// --------------------
+// 
+// calculate total $gutters
+// @returns sum of list OR string of list (for use with calc())
+@function fraction-total($list)
+{
+	$mixed-units: null;
 
-//=====  set fraction() on child elements  =====//
+	@each $gutter in $list
+	{
+		$mixed-units : if( unit($gutter) != %, true, false );
+	}
 
+	$total : 0;
+
+	@for $f from 1 through length($list)
+	{
+		@if $mixed-units
+		{
+			$total : if( $f == 1, '(' + nth($list, $f), if( $f == length($list), $total + ' + ' + nth($list, $f) + ')', $total + ' + ' + nth($list, $f) ) );
+		}
+		@else
+		{
+			$total : $total + nth($list, $f);
+		}
+	}
+
+	@return $total;
+}
+
+
+// @fraction()
+// -----------
+//
 // pass in number of columns the element should span
 // can be a fraction, decimal or whole number
-// pass in the same gutter values as parent
-// pass in a bottom value for margin-bottom
+// pass in a gutter value for between columns
+// pass in a bottom value for between rows
 
-@mixin fraction( $columns, $gutter: 0, $bottom: 0 )
+@mixin fraction( $columns, $gutter : false, $bottom : false )
 {
-
-	// float grid items
-	@extend %align-fraction;
-
-
-	//=====  store width of element in variable  =====//
 	
-	// if columns are passed in as a fraction or decimal, we set unequal width elements
-	@if $columns < 1
+	// @params
+	// map of data types that @fraction() accepts
+	// passed to @fraction-debug() for output to console
+	$params : (
+		debug 	: 'boolean',
+		selector: 'string',
+		grid 	: 'boolean',
+		columns : 'integer | decimal | fraction | list',
+		align	: 'left | right',
+		ratio 	: 'integer | decimal | fraction',
+		ratios 	: 'list',
+		gutter	: 'number',
+		gutters : 'list',
+		bottom	: 'number'
+	);
+	
+	// @settings
+	// placeholder map to modify with options later
+	$settings : ();
+
+
+	// @options
+	// placeholder map for defining options later
+	$options : ();
+
+	
+	// 4. data transforms
+	// ------------------
+	// 
+	// get and test the params being passed into @fraction()
+	// store these values in variables that we can test against later
+	// 
+	// @fraction() accepts single values for $columns, $gutter, $bottom
+	// or
+	// @fraction() accepts a map of all options, for advanced control
+	
+	
+	// store a boolean of whether a map is being passed in
+	$is-map : if( type-of($columns) == map, true, false );
+	
+	// if a map is passed in, merge with our default options
+	@if $is-map
 	{
-		$width: 100% * $columns;
+		// setup the default advanced @fraction() options
+		// these are set to 0 or false so we can test against later
+		// before outputting any unnecessary rules
+		$options : (
+			debug 	: false,
+			selector: 'child',
+			grid 	: false,
+			columns : 1,
+			align	: false,
+			ratio 	: false,
+			ratios 	: false,
+			gutter	: false,
+			gutters : false,
+			bottom	: false
+		);
+	
+		// merge our default options with the passed in map
+		// this creates a new settings map
+		$settings : map-merge($options, $columns);
+		
+		// if debug mode is requested, pass this map to @fraction-debug() for output
+		@if map-get($settings, debug) == true
+		{
+			@include fraction-debug($params);
+		}
 	}
-	// else, its a whole number, so we set equal columns
+
+	// store a boolean of whether columns is a list or a single value	
+	$is-list : if( $is-map and type-of(map-get($settings, columns)) == list, true, false );
+	
+
+	// 5. store variables
+	// ------------------
+	// 
+	// store values from arguments or settings map in variables
+	// we can then test against and use these to conditionally output our css rules
+
+	$selector 		: if( $is-map, 	map-get($settings, selector), 	false 		);
+	$grid 			: if( $is-map, 	map-get($settings, grid), 		false 		);
+	$columns 		: if( $is-map, 	map-get($settings, columns), 	$columns 	);
+	$align 			: if( $is-map, 	map-get($settings, align), 		false 		);
+	$ratio 			: if( $is-map, 	map-get($settings, ratio), 		false 		);
+	$gutter 		: if( $is-map, 	map-get($settings, gutter), 	$gutter 	);
+	$bottom 		: if( $is-map, 	map-get($settings, bottom), 	$bottom 	);
+
+	$columns-list 	: if( $is-list, map-get($settings, columns), 	false 		);
+	$ratios-list 	: if( $is-map, 	map-get($settings, ratios), 	false 		);
+	$gutters-list 	: if( $is-map, 	map-get($settings, gutters), 	false 		);
+	
+	$pseudo 		: if( $selector == 'type', 'of-type', $selector );
+	
+
+	// 6. error checking
+	// -----------------
+	// 
+	// test the data that is being passed to @fraction()
+	// we should error if the incorrect data type is passed to a particular parameter
+
+
+	// $selector
+	// ---------
+	
+	// test if the $selector is a one of two values => (should be true)
+	@if $selector and not ( $selector == 'child' or $selector == 'type' )
+	{
+		@error 'Please provide a [string] of either ' + "'child' or 'type'" + ' for selector. You passed in #{$selector}';
+	}
+
+
+	// $grid
+	// -----
+	
+	// test if the $grid is a [boolean] => (should be true)
+	@if $grid and $grid != true
+	{
+		@error 'Please provide a [boolean] flag for grid. You passed in a [#{type-of($grid)}]';
+	}
+
+	
+	// $columns and $columns-list
+	// --------------------------
+	
+	// test if $columns is a [number] or [list] => (should be true)
+	@if not ( type-of($columns) == number or type-of($columns) == list )
+	{
+		@error 'Please provide a [number] or a [list] of numbers for columns. You passed in a [#{type-of($columns)}]';
+	}
+	// test if $columns is a [list] and each value has no units => (should be true)
+	@elseif type-of($columns) == list
+	{
+		@each $column in $columns
+		{
+			@if not unitless( fraction-integer($column) )
+			{
+				@error 'Please provide a [list] of unitless values for columns. You passed in #{$columns}';
+			}	
+		}	
+	}
+	// test if the $columns is a [number] and the value has no units => (should be true)
 	@else
 	{
-		$width: 100% / $columns;
-	}
-
-	
-	//=====  provide console warnings for invalid gutters  =====//
-	
-	// store unitless value of gutter in variable
-	$unit: $gutter / ($gutter * 0 + 1);
-
-	// if a $gutter is passed in and it's negative or zero
-	// we should @warn the dev that it isn't required
-	@if $gutter != 0 and $unit <= 0 
-	{
-		// if the $gutter is 0
-		@if $unit == 0
+		@if not unitless( fraction-integer($columns) )
 		{
-			@warn you dont need to pass a margin to fraction for 0 -- you used $gutter;
-		}
-		// else the $gutter is negative
-		@else 
-		{
-			@warn please provide a positive margin to fraction -- you used $gutter;
+			@error 'Please provide a unitless value for columns. You passed in #{$columns}';
 		}
 	}
+
+
+	// $align
+	// ------
+	
+	// test if $align is 'left' or 'right' => (should be true)
+	@if $align and not ( $align == 'left' or $align == 'right' )
+	{
+		@error 'Please provide a ' + "'left' or 'right'" + ' value for align. You passed in #{$align}';
+	}
+
+	
+	// $ratio
+	// ------
+	
+	@if $ratio
+	{
+		// test if $ratio is a [number] => (should be true)
+		@if type-of($ratio) == list
+		{
+			@error 'Please provide a [number] for ratio. [list]s of ratios should use the key \'ratios\'';
+		}
+		@elseif not( type-of($ratio) == number )
+		{
+			@error 'Please provide a [number] for ratio. You passed in a [#{type-of($ratio)}]';
+		}
+		@elseif not unitless($ratio)
+		{
+			@error 'Please provide a unitless value for ratio. You passed in #{$ratio}';
+		}
+		@elseif $ratio < 0
+		{
+			// error that we can't set a negative $gutter
+			@error 'Please provide a positive ratio to fraction. You passed in #{$ratio}';
+		}
+	}
 	
 
-	//=====  set width of grid elements  =====//
+	// $gutter
+	// -------
+
+	// test if $gutter is a [number] => (should be true)
+	@if $gutter
+	{
+		@if type-of($gutter) == list
+		{
+			@error 'Please provide a [number] for gutter. [list]s of gutters should use the key \'gutters\'';
+		}
+		@elseif not ( type-of($gutter) == number )
+		{
+			@error 'Please provide a [number] for gutter. You passed in a [#{type-of($gutter)}]';
+		}
+		@elseif unitless($gutter)
+		{
+			@error 'Please provide a unit for gutter. You passed in #{$gutter}';
+		}
+		@elseif $gutter < 0
+		{
+			// error that we can't set a negative $gutter
+			@error 'Please provide a positive gutter to fraction. You passed in #{$gutter}';
+		}
+	}
 	
-	// use calc if gutter has a unit, but unit isn't a % (i.e, mixed units)
-	@if unitless($gutter) == false and unit($gutter) != % and $unit > 0
+
+	// $bottom
+	// -------
+
+	// test if $bottom is a [number] => (should be true)
+	@if $bottom and not( type-of($bottom) == number )
 	{
-		width: calc(#{$width} - #{$gutter});
+		@error 'Please provide a [number] for bottom. You passed in a [#{type-of($bottom)}]';
 	}
-	// if gutter has a value, it must be a %, so we can use simple maths
-	@elseif $gutter != 0 and $unit > 0
+
+	
+	// $ratios-list
+	// ------------
+
+	// test if $bottom is a [number] => (should be true)
+	@if $ratios-list
 	{
-		width: $width - $gutter;
+		@each $ratio in $ratios-list
+		{
+			@if not unitless($ratio)
+			{
+				@error 'Please provide unitless values for a [list] of ratios. You passed in #{$ratios-list}';
+			}	
+		}
+
+		@if not ( type-of($ratios-list) == list )
+		{
+			@error 'Please provide a [list] for ratios. A single [number] for ratio should use the key \'ratio\'';
+		}
+		@elseif $columns-list and ( length($columns-list) != length($ratios-list) )
+		{
+			@error 'Please provide the correct number of ratios. You passed in #{length($columns-list)} columns and #{length($ratios-list)} ratios - fraction expected #{length($columns-list)} ratios';
+		}
+		@elseif not $columns-list and ( $columns and ( $columns != length($ratios-list) ) )
+		{
+			@error 'Please provide the correct number of ratios. You passed in #{$columns} columns and #{length($ratios-list)} ratios - fraction expected #{$columns} ratios';
+		}
 	}
-	// else, no gutter was passed in, so we can just set a width
+
+
+	// $gutters-list
+	// -------------
+
+	// test if $bottom is a [number] => (should be true)
+	@if $gutters-list
+	{
+		@each $gutter in $gutters-list
+		{
+			@if unitless($gutter)
+			{
+				@error 'Please provide units for a [list] of values to gutters. You passed in #{$gutters-list}';
+			}	
+		}
+
+		@if not ( type-of($gutters-list) == list )
+		{
+			@error 'Please provide a [list] for gutters. A single [number] for gutter should use the key \'gutter\'';
+		}
+		@elseif $columns-list and ( length($columns-list) != (length($gutters-list) + 1) )
+		{
+			@error 'Please provide the correct number of gutters. You passed in #{length($columns-list)} columns and #{length($gutters-list)} gutters - fraction expected #{length($columns-list) - 1} gutters';
+		}
+		@elseif not $columns-list and ( $columns and ( $columns != (length($gutters-list) + 1) ) )
+		{
+			@error 'Please provide the correct number of gutters. You passed in #{$columns} columns and #{length($gutters-list)} gutters - fraction expected #{$columns - 1} gutters';
+		}
+	}
+
+
+	// 7. default css rules
+	// --------------------
+	// 
+	// align grid items with float, based on direction
+	
+	@if $align == 'right'
+	{
+		float: right;
+	}
 	@else
 	{
-		width: $width;
+		float: left;
 	}
 
 
-	//=====  set margins of grid elements  =====//
+	// 8. multiple column css rules
+	// ----------------------------
+	// 
+	// if $columns is a list of columns, we'll loop through them
 	
-	// if the $gutter is a valid unit
-	@if $unit > 0
+	@if $columns-list
 	{
 
-		// if a gutter and a bottom margin were passed in, set both as margin
-		@if $gutter != 0 and $bottom != 0
+		// if $grid is set, reset any clear rules from previous instances
+		@if $grid
 		{
-			margin: 0 ($gutter / 2) $bottom;
+			&:nth-#{$pseudo}(n) {
+				clear: none;
+			}
 		}
-		// if only a gutter was passed in, set this as the margin
-		@elseif $gutter != 0
+		
+
+		// get the number of columns passed in to loop through
+		$columns-length: length($columns-list);
+
+		// begin loop
+		@for $f from 1 through $columns-length
 		{
-			margin: 0 ($gutter / 2);
+
+			// output a nth-#{$pseudo} rule per column in the list
+			&:nth-#{$pseudo}(#{$columns-length}n+#{$f}) {
+				
+				// if $grid is set and its the first column, 
+				// declare a clear rule for this row
+				@if $grid and $f == 1
+				{
+					clear: both;
+				}
+				
+				// get the integer of this column in the list
+				$column: fraction-integer(nth($columns-list, $f));
+				
+				// declare width rules
+				@if $gutters-list
+				{
+					$gutters-total: fraction-total($gutters-list);
+
+					@if type-of($gutters-total) == string
+					{
+						width: calc((100% - #{$gutters-total}) / #{$column});
+
+						@if $ratios-list
+						{
+							padding: 0 0 calc(((100% - #{$gutters-total}) / #{$column}) / #{nth($ratios-list, $f)});
+						}
+						@elseif $ratio
+						{
+							padding: 0 0 calc(((100% - #{$gutters-total}) / #{$column}) / #{$ratio});
+						}
+					}
+					@else
+					{
+						width: (100% - $gutters-total) / $column;
+
+						@if $ratios-list
+						{
+							padding: 0 0 (((100% - $gutters-total) / $column) / nth($ratios-list, $f));
+						}
+						@elseif $ratio
+						{
+							padding: 0 0 (((100% - $gutters-total) / $column) / $ratio);
+						}
+					}
+
+					// if a gutter and a bottom margin were passed in, set both as margin
+					@if $bottom and $bottom > 0
+					{
+						@if $f == 1
+						{
+							margin: 0 0 $bottom;
+						}
+						@elseif $align == 'right'
+						{
+							margin: 0 nth($gutters-list, $f - 1) $bottom 0;
+						}
+						@else
+						{
+							margin: 0 0 $bottom nth($gutters-list, $f - 1);
+						}
+					}
+					// if only a gutter was passed in, set this as the margin
+					@elseif $f == 1
+					{
+						margin: 0;
+					}
+					@elseif nth($gutters-list, $f - 1) > 0
+					{
+						@if $align == 'right'
+						{
+							margin: 0 nth($gutters-list, $f - 1) 0 0;
+						}
+						@else
+						{
+							margin: 0 0 0 nth($gutters-list, $f - 1);
+						}
+					}
+					@elseif nth($gutters-list, $f - 1) == 0 and $bottom == 0
+					{
+						margin: 0;
+					}
+				}
+				@elseif $gutter
+				{
+					@if unit($gutter) != %
+					{
+						width: calc((100% - #{($columns-length - 1) * $gutter}) / #{$column});
+
+						@if $ratios-list
+						{
+							padding: 0 0 calc(((100% - #{($columns-length - 1) * $gutter}) / #{$column}) / #{nth($ratios-list, $f)});
+						}
+						@elseif $ratio
+						{
+							padding: 0 0 calc(((100% - #{($columns-length - 1) * $gutter}) / #{$column}) / #{$ratio});
+						}
+					}
+					@else
+					{
+						width: (100% - (($columns-length - 1) * $gutter)) / $column;
+
+						@if $ratios-list
+						{
+							padding: 0 0 (((100% - (($columns-length - 1) * $gutter)) / $column) / nth($ratios-list, $f));
+						}
+						@elseif $ratio
+						{
+							padding: 0 0 (((100% - (($columns-length - 1) * $gutter)) / $column) / $ratio);
+						}
+					}
+
+					// if a gutter and a bottom margin were passed in, set both as margin
+					@if $bottom and $bottom > 0
+					{
+						@if $f == 1
+						{
+							margin: 0 0 $bottom;
+						}
+						@elseif $align == 'right'
+						{
+							margin: 0 $gutter $bottom 0;
+						}
+						@else
+						{
+							margin: 0 0 $bottom $gutter;
+						}
+					}
+					// if only a gutter was passed in, set this as the margin
+					@elseif $gutter > 0
+					{
+						@if $f == 1
+						{
+							margin: 0;
+						}
+						@elseif $align == 'right'
+						{
+							margin: 0 $gutter 0 0;
+						}
+						@else
+						{
+							margin: 0 0 0 $gutter;
+						}
+					}
+					@elseif $gutter == 0 and $bottom == 0
+					{
+						margin: 0;
+					}
+				}
+				@else
+				{
+					width: 100% / $column;
+
+					@if $ratios-list
+					{
+						padding: 0 0 ((100% / $column) / nth($ratios-list, $f));
+					}
+					@elseif $ratio
+					{
+						padding: 0 0 ((100% / $column) / $ratio);
+					}
+				}
+			}
 		}
-		// else, no gutter or bottom margin are required, so don't set anything
-	
 	}
+	// end @if $columns-list
+	
+
+	// 9. single column css rules
+	// --------------------------
+	// 
+	// if $columns is a single value, we'll output once
+	
+	@else
+	{
+		$column : fraction-integer($columns);
+
+		// declare width rules
+		// output nth-#{$pseudo} rule if grid required
+		// this allows us to override previous nth-#{$pseudo} rules declared by fraction
+		@if $grid
+		{
+
+			&:nth-#{$pseudo}(n) {
+				clear: none;
+
+				@if $gutters-list
+				{
+					$gutters-total: fraction-total($gutters-list);
+
+					@if type-of($gutters-total) == string
+					{
+						width: calc((100% - #{$gutters-total}) / #{$column});
+					}
+					@else
+					{
+						width: (100% - $gutters-total) / $column;
+					}
+				}
+				@elseif $gutter
+				{
+					@if unit($gutter) != %
+					{
+						width: calc((100% - #{($column - 1) * $gutter}) / #{$column});
+						
+						@if $ratio
+						{
+							padding: 0 0 calc(((100% - #{($column - 1) * $gutter}) / #{$column}) / #{$ratio});
+						}
+					}
+					@else
+					{
+						width: (100% - (($column - 1) * $gutter)) / $column;
+
+						@if $ratio
+						{
+							padding: 0 0 (((100% - (($column - 1) * $gutter)) / $column) / $ratio);
+						}
+					}
+
+					// if a gutter and a bottom margin were passed in, set both as margin
+					@if $bottom and $bottom > 0
+					{
+						@if $align == 'right'
+						{
+							margin: 0 $gutter $bottom 0;
+						}
+						@else
+						{
+							margin: 0 0 $bottom $gutter;
+						}
+					}
+					// if only a gutter was passed in, set this as the margin
+					@elseif $gutter > 0
+					{
+						@if $align == 'right'
+						{
+							margin: 0 $gutter 0 0;
+						}
+						@else
+						{
+							margin: 0 0 0 $gutter;
+						}
+					}
+					@elseif $gutter == 0 and $bottom == 0
+					{
+						margin: 0;
+					}
+				}
+				@else
+				{
+					width: 100% / $column;
+
+					@if $ratio
+					{
+						padding: 0 0 ((100% / $column) / $ratio);
+					}
+
+					@if $bottom and $bottom > 0
+					{
+						margin: 0 0 $bottom;
+					}
+				}
+			}
+			
+		}
+		// otherwise, keep output to a minimum
+		// don't use nth-#{$pseudo}, as it's too specific at this point
+		@else
+		{
+
+			@if $gutters-list
+			{
+				$gutters-total: fraction-total($gutters-list);
+
+				@if type-of($gutters-total) == string
+				{
+					width: calc((100% - #{$gutters-total}) / #{$column});
+				}
+				@else
+				{
+					width: (100% - $gutters-total) / $column;
+				}
+			}
+			@elseif $gutter
+			{
+				@if unit($gutter) != %
+				{
+					width: calc((100% - #{($column - 1) * $gutter}) / #{$column});
+					
+					@if $ratio
+					{
+						padding: 0 0 calc(((100% - #{($column - 1) * $gutter}) / #{$column}) / #{$ratio});
+					}
+				}
+				@else
+				{
+					width: (100% - (($column - 1) * $gutter)) / $column;
+
+					@if $ratio
+					{
+						padding: 0 0 (((100% - (($column - 1) * $gutter)) / $column) / $ratio);
+					}
+				}
+
+				// if a gutter and a bottom margin were passed in, set both as margin
+				@if $bottom and $bottom > 0
+				{
+					@if $align == 'right'
+					{
+						margin: 0 $gutter $bottom 0;
+					}
+					@else
+					{
+						margin: 0 0 $bottom $gutter;
+					}
+				}
+				// if only a gutter was passed in, set this as the margin
+				@elseif $gutter > 0
+				{
+					@if $align == 'right'
+					{
+						margin: 0 $gutter 0 0;
+					}
+					@else
+					{
+						margin: 0 0 0 $gutter;
+					}
+				}
+				@elseif $gutter == 0 and $bottom == 0
+				{
+					margin: 0;
+				}
+			}
+			@else
+			{
+				width: 100% / $column;
+
+				@if $ratio
+				{
+					padding: 0 0 ((100% / $column) / $ratio);
+				}
+
+				@if $bottom and $bottom > 0
+				{
+					margin: 0 0 $bottom;
+				}
+			}
+
+		}
+		// end single column single value output
+		
+		// now set $gutters and $ratios if list passed in
+		// loop through individual values
+		@if $gutters-list or $ratios-list
+		{
+			$list-length: max(length($gutters-list) + 1, length($ratios-list));
+
+			@for $f from 1 through $list-length
+			{
+				&:nth-#{$pseudo}(#{$list-length}n+#{$f}) {
+
+					@if $grid and $f == 1
+					{
+						clear: both;
+					}
+					
+					// declare width rules
+					@if $gutters-list
+					{
+						$gutters-total: fraction-total($gutters-list);
+
+						@if type-of($gutters-total) == string
+						{
+							@if $ratios-list
+							{
+								padding: 0 0 calc(((100% - #{$gutters-total}) / #{$column}) / #{nth($ratios-list, $f)});
+							}
+							@elseif $ratio
+							{
+								padding: 0 0 calc(((100% - #{$gutters-total}) / #{$column}) / #{$ratio});
+							}
+						}
+						@else
+						{
+							@if $ratios-list
+							{
+								padding: 0 0 (((100% - $gutters-total) / $column) / nth($ratios-list, $f));
+							}
+							@elseif $ratio
+							{
+								padding: 0 0 (((100% - $gutters-total) / $column) / $ratio);
+							}
+						}
+
+						// if a gutter and a bottom margin were passed in, set both as margin
+						@if $bottom and $bottom > 0
+						{
+							@if $f == 1
+							{
+								margin: 0 0 $bottom;
+							}
+							@elseif $align == 'right'
+							{
+								margin: 0 nth($gutters-list, $f - 1) $bottom 0;
+							}
+							@else
+							{
+								margin: 0 0 $bottom nth($gutters-list, $f - 1);
+							}
+						}
+						// if only a gutter was passed in, set this as the margin
+						@elseif $f == 1
+						{
+							margin: 0;
+						}
+						@elseif nth($gutters-list, $f - 1) > 0
+						{
+							@if $align == 'right'
+							{
+								margin: 0 nth($gutters-list, $f - 1) 0 0;
+							}
+							@else
+							{
+								margin: 0 0 0 nth($gutters-list, $f - 1);
+							}
+						}
+						@elseif nth($gutters-list, $f - 1) == 0 and $bottom == 0
+						{
+							margin: 0;
+						}
+					}
+					@elseif $gutter
+					{
+						@if unit($gutter) != %
+						{
+							@if $ratios-list
+							{
+								padding: 0 0 calc(((100% - #{($list-length - 1) * $gutter}) / #{$column}) / #{nth($ratios-list, $f)});
+							}
+							@elseif $ratio
+							{
+								padding: 0 0 calc(((100% - #{($list-length - 1) * $gutter}) / #{$column}) / #{$ratio});
+							}
+						}
+						@else
+						{
+							@if $ratios-list
+							{
+								padding: 0 0 (((100% - (($list-length - 1) * $gutter)) / $column) / nth($ratios-list, $f));
+							}
+							@elseif $ratio
+							{
+								padding: 0 0 (((100% - (($list-length - 1) * $gutter)) / $column) / $ratio);
+							}
+						}
+
+						// if a gutter and a bottom margin were passed in, set both as margin
+						@if $bottom and $bottom > 0
+						{
+							@if $f == 1
+							{
+								margin: 0 0 $bottom;
+							}
+							@elseif $align == 'right'
+							{
+								margin: 0 $gutter $bottom 0;
+							}
+							@else
+							{
+								margin: 0 0 $bottom $gutter;
+							}
+						}
+						// if only a gutter was passed in, set this as the margin
+						@elseif $gutter > 0
+						{
+							@if $f == 1
+							{
+								margin: 0;
+							}
+							@elseif $align == 'right'
+							{
+								margin: 0 $gutter 0 0;
+							}
+							@else
+							{
+								margin: 0 0 0 $gutter;
+							}
+						}
+						@elseif $gutter == 0 and $bottom == 0
+						{
+							margin: 0;
+						}
+					}
+					@else
+					{
+						@if $ratios-list
+						{
+							padding: 0 0 ((100% / $column) / nth($ratios-list, $f));
+						}
+						@elseif $ratio
+						{
+							padding: 0 0 ((100% / $column) / $ratio);
+						}
+
+						@if $bottom and $bottom > 0
+						{
+							margin: 0 0 $bottom;
+						}
+					}
+				}
+			}
+		}
+		// end $gutters and $ratios
+		
+		
+		// 10. reset grids and rows
+		// ------------------------
+		// 
+		// if grid, apply reset for next row
+		// this is only being set for single column output
+		// its already handled with nth-#{$pseudo} in multiple column condition
+		
+		@if $grid or $gutter
+		{
+
+			&:nth-#{$pseudo}(#{ floor($column) }n+1) {
+				
+				@if $grid
+				{
+					clear: both;
+				}
+			
+				@if $align and $align == 'right' 
+				{
+					margin-right: 0;
+				}
+				@else
+				{
+					margin-left: 0;
+				}
+			}
+
+		}
+
+
+	} // end @else $columns
+
 
 } // end fraction();
+

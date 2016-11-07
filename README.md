@@ -1,38 +1,43 @@
 # Fraction
-Introducing Fraction. A simple but smart little sass mixin, built to make grids and columns easy to create and update.
+Introducing Fraction. A simple yet powerful sass mixin, built to make grids and columns easy to create and update.
 
-Fraction outputs minimal, DRY CSS - only the bare minimum styles and rules to get a grid up and running.
+Fraction allows you to easily set a layout with as much control as you need, accepting Shorthand and Advanced options to achieve this speed.
+
+Fraction relies on the `nth-child` or optional `nth-of-type` selector, with automatic clears and margin calculations.
 
 
-## Creating a grid
-Fraction allows you to set columns in lots of different ways.
+# Shorthand
+The shorthand call accepts 3 params - `columns`, `gutter` and `bottom`. Fraction assumes this method will be called to create an inline column layout (i.e, not a grid, but to perhaps evenly distribute 4 blocks in a panel). Grids should be made using the Advanced options.
 
-```
-.child {
+
+## Columns
+
+```sass
+.element {
 	@include fraction(4);
 }
 
-.child {
+.element {
 	@include fraction(1/4);
 }
 
-.child {
+.element {
 	@include fraction(0.25);
 }
 ```
 
 These would then all output `width: 25%;` on the element that fraction() is called on.
 
-```
-.child {
+```sass
+.element {
 	float: left;
 	width: 25%;
 }
 ```
 
-Alternatively, you can set ratios of widths independently.
+Alternatively, you can set the fractions of widths independently.
 
-```
+```sass
 .child-1 {
 	@include fraction(1/7);
 }
@@ -46,119 +51,183 @@ Alternatively, you can set ratios of widths independently.
 }
 ```
 
-Which outputs to **super minimal**, **DRY** CSS.
+Which outputs to the following CSS.
 
-```
-.child-1,
-.child-2,
-.child-3 {
-	float: left;
-}
-
+```sass
 .child-1 {
+	float: left;
 	width: 14.28571%;
 }
 
 .child-2 {
+	float: left;
 	width: 28.57143%;
 }
 
 .child-3 {
+	float: left;
 	width: 57.14286%;
 }
 ```
-
-Fraction also comes with a `has-fraction()` mixin which should be set on the parent container.
-
-This will output a simple `clear-fix` helper to prevent float issues.
-
-This mixin will also accept gutter values, outlined below.
-
->	**Note** If you don't need to set any margins, and you have your own `clear-fix` rule setup, you don't need to include `has-fraction()` at this stage.
+>	**Note** Fraction doesn't use a %placeholder to combine floats to allow it to be called inside @media queries
 
 
-## Applying gutters
-Fraction also accepts 2 further arguments for applying margins, though both are not required by default.
+## Gutters
+Fraction also accepts 2 arguments for applying margins, controlling horizontal and vertical spacing.
 
->	**Note** A margin rule will only be output in your css if you actually pass margins in.
+To set a gutter between your columns, pass in the `$gutter` width that you want and Fraction will calculate the rest.
 
-To set a gutter between your grid items, pass in the `$gutter` width that you want and Fraction will calculate the rest.
+Similarly, the final `$bottom` argument sets a bottom margin value.
 
-You will also need to pass in the same `$gutter` value to `has-fraction()` on the parent container so Fraction can get the alignment correct.
-
-```
-.parent {
-	@include has-fraction(5%);
-
-	.child {
-		@include fraction(3, 5%);
-	}
+```sass
+.element
+	@include fraction(3, 5%);
 }
 
-.parent {
-	@include has-fraction(5rem);
-
-	.child {
-		@include fraction(3, 5rem);
-	}
+.element
+	@include fraction(3, 5rem);
 }
 
-.parent {
-	@include has-fraction(5px);
+.element
+	@include fraction(3, 5rem, 10px);
+}
 
-	.child {
-		@include fraction(3, 5px);
-	}
+.element
+	@include fraction(3, 5px, 2rem);
 }
 ```
-
 >	**Note** If you pass in a margin value that isn't a %, Fraction will use calc() to calculate widths
 
 
-## Controlling vertical gutters
-The 3rd argument for Fraction is for `margin-bottom`.
+# Advanced 
+The advanced call accepts a map of params and values, allowing for more control over the output. Fraction assumes this method will be called to create a grid (e.g, a 4x4 grid of boxes), or to change direction (e.g, align right). 
 
-```
-.parent {
-	@include has-fraction(5%);
-	
-	.child {
-		@include fraction(3, 5%, 5%);
-	}
-}
-```
-Which outputs to 
+>	**Note** Grids automatically control clears and resets on rows, where as the Shorthand options do not.
 
-```
-.parent {
-	margin: 0 -2.5%;
-}
 
-.child {
-	width: 28.33333%;
-	margin: 0 2.5% 5%;
-}
+## Debug
+```sass
+type : [boolean]
+default : false
+options : true | false
 ```
+Helper param to output to console a log of all accepted keys and types (as below).
 
-You can also pass a `margin-bottom` value to `has-fraction()` which is independent of whatever you are setting for the child element.
 
+## Selector
+```sass
+type : [string]
+default : 'child'
+options : 'child' | 'type' | 'matches'
 ```
-.parent {
-	@include has-fraction(5%, 12%);
-	
-	.child {
-		@include fraction(3, 5%, 8px);
-	}
-}
+Tell Fraction which pseudo selector to use. Automatically interpolates with `nth-{$selector}`, which provides future support for CSS4 `nth-matches`.
+
+The `nth-of-type` pseudo is particularly useful if there are extra elements in the grid container that would otherwise break the grid.
+
+
+## Grid
+```sass
+type : [boolean]
+default : false
+options : true | false
 ```
+Setting this param tells Fraction to automatically set clear rules on the first element of each row. 
+
+Fraction will also output a reset in case it has been previously called on this element (e.g, changing the grid from a 2x4 to a 4x2 with an `@media` query).
+
+>	**Note** the `grid` option should be used in every Fraction instance after the first initial call, even if subsequently going to a single row grid. This is the only way to get the automatic resets of clear rules.
+
+
+## Columns
+```sass
+type : [integer | decimal | fraction | list]
+default : 1
+options : 3, 0.3, 1/3, (1/3, 2/3)
+```
+The only required param, pass in a single value for Fraction to apply this column width to all child elements. Passing in a [list] causes Fraction to set each value on the multiple of that element. For example, `1/3` would be set on `odd` children, `2/3` would be set on `even` children.
+
+
+## Align
+```sass
+type : [string]
+default : 'left'
+options : 'left' | 'right'
+```
+Set the float value for Fraction to use on the child elements.
+
+
+## Ratio
+```sass
+type : [integer | decimal | fraction]
+default : none
+options : 2, 0.5, 1/2
+```
+Implements a `padding-bottom` percentage trick to create responsive squares or rectangles. Setting a ratio of `1/1` creates a perfect square; adjusting the ratio will create a porportioned vertical or horizontal rectangle.
+
+>	**Note** use `position : absolute` on the inner content to complete the effect. 
+
+
+## Ratios
+```sass
+type : [list]
+default : none
+options : (1/2, 1/1)
+```
+List version of `ratio`, allows you to set independent ratios across `columns`. Each ratio in the list will be set on the same index of column that Fraction creates.
+
+>	**Note** Fraction will expect the number of ratios passed in to match the number of columns it makes.
+
+
+## Gutter
+```sass
+type : [number]
+default : none
+options : 1rem, 10px, 10%
+```
+Set the gutter width between all columns. Fraction will uses `calc()` if the units are not a percentage.
+
+
+## Gutters
+```sass
+type : [list]
+default : none
+options : (1rem, 10px)
+```
+List version of `gutter`, allows you to set independent gutters across `columns`. Each gutter in the list will be set on the same index of column that Fraction creates.
+
+>	**Note** Fraction will expect the number of gutters passed in to be 1 less than the number of columns it makes.
+
+
+## Bottom
+```sass
+type : [number]
+default : none
+options : 1rem, 10px, 10%
+```
+Set a bottom margin on all child elements. An optimised shorthand version of `margin` is used depending on the combination of `gutter` and `bottom` that is used.
+
+
 
 # Options
-The options for `fraction()` and `has-fraction()` are -
+The options for `fraction()` are -
 
-```
-@mixin has-fraction($gutter, $margin-bottom);
+```sass
+// shorthand
+@include fraction($columns, $gutter, $bottom);
 
-@mixin fraction($columns, $gutter, $margin-bottom);
+// advanced
+@include fraction((
+	debug 	: 'boolean',
+	selector: 'string',
+	grid 	: 'boolean',
+	columns : 'integer | decimal | fraction | list',
+	align	: 'left | right',
+	ratio 	: 'integer | decimal | fraction',
+	ratios 	: 'list',
+	gutter	: 'number',
+	gutters : 'list',
+	bottom	: 'number'
+));
 ```
 
 # Extending Fraction
