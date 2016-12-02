@@ -2,7 +2,7 @@
 // Fraction
 // --------
 // 
-// @version 3.2.0
+// @version 3.2.1
 // @author Liam Hegenbarth
 // 
 // @description 
@@ -167,7 +167,7 @@
 		// before outputting any unnecessary rules
 		$options : (
 			debug 	: false,
-			selector: 'child',
+			selector: false,
 			grid 	: false,
 			columns : 1,
 			align	: false,
@@ -211,7 +211,7 @@
 	$ratios-list 	: if( $is-map, 	map-get($settings, ratios), 	false 		);
 	$gutters-list 	: if( $is-map, 	map-get($settings, gutters), 	false 		);
 	
-	$pseudo 		: if( $selector == 'type', 'of-type', $selector );
+	$pseudo 		: if( $selector, if( $selector == 'type', 'of-type', $selector), 'child' );
 	
 
 	// 6. error checking
@@ -963,7 +963,7 @@
 		
 		@if $grid or $gutter
 		{
-
+			
 			&:nth-#{$pseudo}(#{ floor($column) }n+1) {
 				
 				@if $grid
