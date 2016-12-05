@@ -2,7 +2,7 @@
 // Fraction
 // --------
 // 
-// @version 3.2.1
+// @version 3.3.0
 // @author Liam Hegenbarth
 // 
 // @description 
@@ -132,7 +132,8 @@
 		ratios 	: 'list',
 		gutter	: 'number',
 		gutters : 'list',
-		bottom	: 'number'
+		bottom	: 'number',
+		ie-fix 	: 'boolean'
 	);
 	
 	// @settings
@@ -175,7 +176,8 @@
 			ratios 	: false,
 			gutter	: false,
 			gutters : false,
-			bottom	: false
+			bottom	: false,
+			ie-fix 	: false
 		);
 	
 		// merge our default options with the passed in map
@@ -210,9 +212,12 @@
 	$columns-list 	: if( $is-list, map-get($settings, columns), 	false 		);
 	$ratios-list 	: if( $is-map, 	map-get($settings, ratios), 	false 		);
 	$gutters-list 	: if( $is-map, 	map-get($settings, gutters), 	false 		);
+
+	$ie-fix 		: if( $is-map, 	map-get($settings, ie-fix), 	false 		);
 	
 	$pseudo 		: if( $selector, if( $selector == 'type', 'of-type', $selector), 'child' );
-	
+	$total 			: if( $ie-fix, 99.9999%, 100% );
+
 
 	// 6. error checking
 	// -----------------
@@ -399,6 +404,15 @@
 		}
 	}
 
+	// $ie-fix
+	// -------
+	
+	// test if $ie-fix is a [boolean] => (should be true)
+	@if $ie-fix and $ie-fix != true
+	{
+		@error 'Please provide a [boolean] flag for the ie-fix. You passed in a [#{type-of($ie-fix)}]';
+	}
+
 
 	// 7. default css rules
 	// --------------------
@@ -459,15 +473,15 @@
 
 					@if type-of($gutters-total) == string
 					{
-						width: calc((100% - #{$gutters-total}) / #{$column});
+						width: calc((#{$total} - #{$gutters-total}) / #{$column});
 
 						@if $ratios-list
 						{
-							padding: 0 0 calc(((100% - #{$gutters-total}) / #{$column}) / #{nth($ratios-list, $f)});
+							padding: 0 0 calc(((#{$total} - #{$gutters-total}) / #{$column}) / #{nth($ratios-list, $f)});
 						}
 						@elseif $ratio
 						{
-							padding: 0 0 calc(((100% - #{$gutters-total}) / #{$column}) / #{$ratio});
+							padding: 0 0 calc(((#{$total} - #{$gutters-total}) / #{$column}) / #{$ratio});
 						}
 					}
 					@else
@@ -525,15 +539,15 @@
 				{
 					@if unit($gutter) != %
 					{
-						width: calc((100% - #{($columns-length - 1) * $gutter}) / #{$column});
+						width: calc((#{$total} - #{($columns-length - 1) * $gutter}) / #{$column});
 
 						@if $ratios-list
 						{
-							padding: 0 0 calc(((100% - #{($columns-length - 1) * $gutter}) / #{$column}) / #{nth($ratios-list, $f)});
+							padding: 0 0 calc(((#{$total} - #{($columns-length - 1) * $gutter}) / #{$column}) / #{nth($ratios-list, $f)});
 						}
 						@elseif $ratio
 						{
-							padding: 0 0 calc(((100% - #{($columns-length - 1) * $gutter}) / #{$column}) / #{$ratio});
+							padding: 0 0 calc(((#{$total} - #{($columns-length - 1) * $gutter}) / #{$column}) / #{$ratio});
 						}
 					}
 					@else
@@ -630,7 +644,7 @@
 
 					@if type-of($gutters-total) == string
 					{
-						width: calc((100% - #{$gutters-total}) / #{$column});
+						width: calc((#{$total} - #{$gutters-total}) / #{$column});
 					}
 					@else
 					{
@@ -641,11 +655,11 @@
 				{
 					@if unit($gutter) != %
 					{
-						width: calc((100% - #{($column - 1) * $gutter}) / #{$column});
+						width: calc((#{$total} - #{($column - 1) * $gutter}) / #{$column});
 						
 						@if $ratio
 						{
-							padding: 0 0 calc(((100% - #{($column - 1) * $gutter}) / #{$column}) / #{$ratio});
+							padding: 0 0 calc(((#{$total} - #{($column - 1) * $gutter}) / #{$column}) / #{$ratio});
 						}
 					}
 					@else
@@ -715,7 +729,7 @@
 
 				@if type-of($gutters-total) == string
 				{
-					width: calc((100% - #{$gutters-total}) / #{$column});
+					width: calc((#{$total} - #{$gutters-total}) / #{$column});
 				}
 				@else
 				{
@@ -726,11 +740,11 @@
 			{
 				@if unit($gutter) != %
 				{
-					width: calc((100% - #{($column - 1) * $gutter}) / #{$column});
+					width: calc((#{$total} - #{($column - 1) * $gutter}) / #{$column});
 					
 					@if $ratio
 					{
-						padding: 0 0 calc(((100% - #{($column - 1) * $gutter}) / #{$column}) / #{$ratio});
+						padding: 0 0 calc(((#{$total} - #{($column - 1) * $gutter}) / #{$column}) / #{$ratio});
 					}
 				}
 				@else
@@ -814,11 +828,11 @@
 						{
 							@if $ratios-list
 							{
-								padding: 0 0 calc(((100% - #{$gutters-total}) / #{$column}) / #{nth($ratios-list, $f)});
+								padding: 0 0 calc(((#{$total} - #{$gutters-total}) / #{$column}) / #{nth($ratios-list, $f)});
 							}
 							@elseif $ratio
 							{
-								padding: 0 0 calc(((100% - #{$gutters-total}) / #{$column}) / #{$ratio});
+								padding: 0 0 calc(((#{$total} - #{$gutters-total}) / #{$column}) / #{$ratio});
 							}
 						}
 						@else
@@ -876,11 +890,11 @@
 						{
 							@if $ratios-list
 							{
-								padding: 0 0 calc(((100% - #{($list-length - 1) * $gutter}) / #{$column}) / #{nth($ratios-list, $f)});
+								padding: 0 0 calc(((#{$total} - #{($list-length - 1) * $gutter}) / #{$column}) / #{nth($ratios-list, $f)});
 							}
 							@elseif $ratio
 							{
-								padding: 0 0 calc(((100% - #{($list-length - 1) * $gutter}) / #{$column}) / #{$ratio});
+								padding: 0 0 calc(((#{$total} - #{($list-length - 1) * $gutter}) / #{$column}) / #{$ratio});
 							}
 						}
 						@else
