@@ -207,6 +207,15 @@ options : 1rem, 10px, 10%
 Set a bottom margin on all child elements. An optimised shorthand version of `margin` is used depending on the combination of `gutter` and `bottom` that is used.
 
 
+## IE Fix
+```sass
+type : [boolean]
+default : false
+options : true | false
+```
+Setting this param fixes IE render issues with `calc()` and `100%` calculations. Fraction will use a value of `99.9999%` where needed for any `calc()` operations.
+
+
 
 # Options
 The options for `fraction()` are -
@@ -226,7 +235,8 @@ The options for `fraction()` are -
 	ratios 	: 'list',
 	gutter	: 'number',
 	gutters : 'list',
-	bottom	: 'number'
+	bottom	: 'number',
+	ie-fix  : 'boolean'
 ));
 ```
 
